@@ -1,0 +1,57 @@
+name: Split combined goodbye flashcard
+
+on:
+  push:
+    paths:
+      - ".github/workflows/split-goodbye-card.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  update-card:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Split the combined card
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("index.html")
+          text = path.read_text(encoding="utf-8")
+
+          old_card = "Daily Expressions|2|さようなら／しつれいします／じゃ、また（あした）|sayōnara / shitsurei shimasu / ja, mata (ashita)|Goodbye / Excuse me / See you (tomorrow)|さようなら\\n"
+          new_cards = (
+              "Daily Expressions|2|さようなら|sayōnara|Goodbye|さようなら\\n"
+              "Daily Expressions|2|しつれいします|shitsurei shimasu|Excuse me|しつれいします\\n"
+              "Daily Expressions|2|じゃ、また（あした）|ja, mata (ashita)|See you (tomorrow)|じゃ、またあした\\n"
+          )
+
+          replacements = [
+              (old_card, new_cards),
+              ("99 interactive flashcards", "101 interactive flashcards"),
+              ("Card 1 of 99", "Card 1 of 101"),
+              ("Unseen 99", "Unseen 101"),
+          ]
+
+          for old, new in replacements:
+              if old not in text:
+                  raise SystemExit(f"Expected text not found: {old[:80]}")
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding="utf-8")
+          Path(".github/workflows/split-goodbye-card.yml").unlink()
+          PY
+
+      - name: Commit the update
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html .github/workflows/split-goodbye-card.yml
+          git commit -m "Split goodbye expressions into separate flashcards"
+          git push
