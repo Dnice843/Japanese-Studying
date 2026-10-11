@@ -55,7 +55,16 @@ position.textContent=`Card ${cursor+1} of ${order.length} • ${cards.length} to
 function go(n){if(!order.length)return;cursor=(cursor+n+order.length)%order.length;flipped=false;render();announce("")}function doFlip(){if(!cur())return;flipped=!flipped;render();announce("")}
 function rebuild(){const cat=category.value,q=search.value.trim().toLocaleLowerCase();order=cards.filter(c=>(cat==="All"||c.cat===cat)&&(!q||[c.jp,c.romaji,c.en].some(v=>v.toLocaleLowerCase().includes(q)))).map(c=>c.id);cursor=0;flipped=false;render()}
 function shuffleCards(){for(let i=order.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[order[i],order[j]]=[order[j],order[i]]}cursor=0;flipped=false;render();announce("Cards shuffled.")}
-function speak(){const c=cur();if(!c)return;if(!("speechSynthesis"in window)){announce("Audio is not supported in this browser.");return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(c.audio);u.lang="ja-JP";u.rate=.78;const v=speechSynthesis.getVoices().find(x=>(x.lang||"").toLowerCase().startsWith("ja"));if(v)u.voice=v;u.onstart=()=>announce("Playing Japanese pronunciation.");u.onend=()=>announce("");u.onerror=()=>announce("This browser could not play the pronunciation.");speechSynthesis.speak(u)}
+function pronunciationText(c){
+if(!/[／/・]/.test(c.jp))return c.audio;
+const special={
+"これ（それ／あれ）は 何ですか？":"これは何ですか。それは何ですか。あれは何ですか。",
+"私は 15／19／22 歳です":"私は十五歳です。私は十九歳です。私は二十二歳です。"
+};
+if(special[c.jp])return special[c.jp];
+return c.jp.replace(/（(?:casual|more polite)）|\((?:casual|more polite)\)/gi,"").replace(/_{2,}|〜+/g,"").replace(/[／/・]/g,"。").replace(/[()（）]/g,"").replace(/\s+/g," ").trim();
+}
+function speak(){const c=cur();if(!c)return;if(!("speechSynthesis"in window)){announce("Audio is not supported in this browser.");return}speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(pronunciationText(c));u.lang="ja-JP";u.rate=.78;const v=speechSynthesis.getVoices().find(x=>(x.lang||"").toLowerCase().startsWith("ja"));if(v)u.voice=v;u.onstart=()=>announce("Playing Japanese pronunciation.");u.onend=()=>announce("");u.onerror=()=>announce("This browser could not play the pronunciation.");speechSynthesis.speak(u)}
 function mark(v){const c=cur();if(!c)return;ratings.set(c.id,v);updateStats();announce(v==="known"?"Marked as known.":"Marked for review.");if(order.length>1)setTimeout(()=>go(1),160);else render()}
 category.addEventListener("change",rebuild);search.addEventListener("input",rebuild);card.addEventListener("click",doFlip);flip.addEventListener("click",doFlip);prev.addEventListener("click",()=>go(-1));next.addEventListener("click",()=>go(1));listen.addEventListener("click",speak);known.addEventListener("click",()=>mark("known"));review.addEventListener("click",()=>mark("review"));$("shuffle").addEventListener("click",shuffleCards);$("reset").addEventListener("click",()=>{category.value="All";search.value="";ratings.clear();order=cards.map(c=>c.id);cursor=0;flipped=false;if("speechSynthesis"in window)speechSynthesis.cancel();render();announce("Deck reset.")});
 document.addEventListener("keydown",e=>{const t=(e.target&&e.target.tagName)||"";if(["INPUT","SELECT","TEXTAREA"].includes(t))return;if(e.key==="ArrowRight"){e.preventDefault();go(1)}if(e.key==="ArrowLeft"){e.preventDefault();go(-1)}if(e.key===" "){e.preventDefault();doFlip()}if(e.key.toLowerCase()==="p"){e.preventDefault();speak()}});render();
